@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Tag
+from core.models import Tag, Recipe
 
 from recipe.serializers import TagSerializer
 
@@ -83,3 +83,23 @@ class PrivateTagsAPITests(TestCase):
         res = self.client.post(TAGS_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_retrieve_tags_assigned_to_recipes(self):
+        """ Test filtering tags by those assigned to recipes. """
+        first_tag = Tag.objects.create(user=self.user, name="Breakfast")
+        second_tag = Tag.objects.create(user=self.user, name="Lunch")
+        recipe = Recipe.objects.create(
+            title="Coriander eggs on toast",
+            time_minutes=10,
+            price=5.00,
+            user=self.user
+        )
+        recipe.tags.add(first_tag)
+
+        res = self.client.get(TAGS_URL, {"assigned_only": 1})
+
+        first_serializer = TagSerializer(first_tag)
+        second_serializer = TagSerializer(second_tag)
+
+        self.assertIn(first_serializer.data, res.data)
+        self.assertNotIn(second_serializer.data, res.data)
